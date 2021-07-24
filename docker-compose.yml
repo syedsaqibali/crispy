@@ -1,0 +1,9 @@
+version: "3.4"
+
+services:
+  crisp_homework:
+    build:
+      context: .
+    command: src/transformer.py
+    volumes:
+      - .:/crispy_project
