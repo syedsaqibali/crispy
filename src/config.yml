@@ -12,20 +12,20 @@
    - Empty Column
  output-fields:
    OrderID:
-     Type: integer
-     Transform: "${Order Number}"
+     Type: INTEGER
+     Transform: "int('${Order Number}')"
    OrderDate:
-     Type: text
-     Transform: "kg"
+     Type: DATE
+     Transform: "datetime.strptime('${Day}/${Month}/${Year}', '%d/%m/%Y')"
    ProductId:
-     Type: text
-     Transform: "kg"
+     Type: STRING
+     Transform: "str('${Product Number}')"
    ProductName:
-     Type: text
-     Transform: "kg"
+     Type: STRING
+     Transform: "'${Product Name}'.title()"
    Quantity:
-     Type: real
-     Transform: "kg"
+     Type: FLOAT
+     Transform: "float('${Count}'.replace(',', ''))"
    Unit:
-     Type: text
-     Transform: "kg"
+     Type: STRING
+     Transform: "'kg'"
