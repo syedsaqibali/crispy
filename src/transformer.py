@@ -5,9 +5,8 @@ from tqdm import tqdm
 import csv
 import yaml
 import re
-from datetime import datetime
 import subprocess
-import sys
+import datetime
 
 DATA_TYPES = {
     'INTEGER',
@@ -15,6 +14,7 @@ DATA_TYPES = {
     'STRING'
 }
 
+VARIABLE_REGEXP = re.compile('\$\{[A-Za-z0-9 ]+\}')
 
 class InputInterface:
     def __init__(self, source, transforms):
@@ -48,11 +48,24 @@ class FileInput(InputInterface):
         self.transforms = transforms
         self.current_row_num = 0
         self.total_rows = self._num_rows_in_file()
-        self.open_file = open(source, newline='')
+        self.open_file = open(self.source, newline='')
         self.reader = csv.DictReader(self.open_file)
 
     def __next__(self):
-        return self.reader.__next__()
+        file_row = self.reader.__next__()
+        self.current_row_num += 1
+        transformed_row = {}
+        for field in file_row:
+            type = self.transforms[field]['Type']
+            if type == 'INTEGER':
+                transformed_row[field] = int(file_row[field])
+            elif type == 'FLOAT':
+                transformed_row[field] = float(file_row[field])
+            elif type == 'STRING':
+                transformed_row[field] = file_row[field]
+            else:
+                assert False, 'It should never get here!'
+        return transformed_row
 
     def num_total_rows(self):
         return self.total_rows
@@ -78,30 +91,44 @@ class FileOutput(OutputInterface):
         self.target = target
         self.transforms = transforms
         self.current_row_num = 0
+        self.open_file = open(self.target, 'w')
+        self.writer = csv.DictWriter(self.open_file, self.transforms.keys())
+        self.writer.writeheader()
+
+    def _substitute_variables(self, transform_string, data):
+        replacement_set = set(VARIABLE_REGEXP.findall(transform_string))
+        for i in replacement_set:
+            source_field_name = i[2:-1]
+            transform_string = transform_string.replace(i, str(data[source_field_name]))
+        return transform_string
 
     def put_row(self, data):
-        pass
+        transformed_row = {}
+        self.current_row_num += 1
+        for field in self.transforms.keys():
+            transformed_value = eval(self._substitute_variables(transform_string=self.transforms[field]['Transform'],
+                                                                data=data))
+            type = self.transforms[field]['Type']
+            if type == 'INTEGER':
+                transformed_row[field] = int(transformed_value)
+            elif type == 'FLOAT':
+                transformed_row[field] = float(transformed_value)
+            elif type == 'STRING':
+                transformed_row[field] = transformed_value
+            else:
+                assert False, 'It should never get here!'
+        self.writer.writerow(transformed_row)
 
     def get_current_row_num(self):
         return self.current_row_num
 
     def tear_down(self):
-        pass
-
-
-
-field_regexp = re.compile('\$\{[A-Za-z0-9 ]+\}')
-
-
-
-
-
-
+        self.open_file.close()
 
 def parse_config_yaml(config_file):
 
     # Parse the configuration file
-    parsed_config = yaml.load(open(config_file).read())
+    parsed_config = yaml.load(open(config_file).read(), Loader=yaml.FullLoader)
 
     # Check the configuration has top-level keys input-fields & output-fields only
     assert set(parsed_config.keys()) == {'input-fields', 'output-fields'}, 'Configuration file {} must contain exactly 2 top-level keys: input-fields, output-fields'.format(config_file)
@@ -117,25 +144,6 @@ def parse_config_yaml(config_file):
 
     return parsed_config
 
-
-
-
-
-def evaluate_transform(transform, type, source_dict):
-    replacement_set = set(field_regexp.findall(transform))
-    for i in replacement_set:
-        transform = transform.replace(i, source_dict[i[2:-1]])
-    return eval(transform)
-
-def prepare_value_for_db_insert(value, type):
-    if type == 'INTEGER':
-        return str(value)
-    if type == 'STRING':
-        return '\'{}\''.format(value)
-    if type == 'FLOAT':
-        return str(value)
-    if type == 'DATE':
-        return '\'{}\''.format(value.strftime("%Y-%m-%d"))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -156,43 +164,13 @@ def main():
     args = parser.parse_args()
 
     config_spec = parse_config_yaml(config_file=args.config)
-    print('config_spec = {}'.format(config_spec))
 
     inputter = FileInput(source=args.input, transforms=config_spec['input-fields'])
     outputter = FileOutput(target=args.success, transforms=config_spec['output-fields'])
-    print('Hello World')
-    for row_ind, row in tqdm(enumerate(inputter), total=inputter.num_total_rows()):
-        print('Goodbye World')
+    for row in tqdm(inputter, total=inputter.num_total_rows()):
+        outputter.put_row(row)
     outputter.tear_down()
     inputter.tear_down()
-
-    # try:
-    #     db_conn = init_db(db_file=args.database,
-    #                       config_spec=config_spec)
-    # except sqlite3.Error as exc:
-    #     print(exc)
-    #
-    # db_cursor = db_conn.cursor()
-    # total_lines = lines_in_file(args.input) - 1
-    # with open(args.input, newline='') as csv_file:
-    #     reader = csv.DictReader(csv_file)
-    #     for row_ind, row in tqdm(enumerate(reader), total=total_lines):
-    #         print('*' * 80)
-    #         sql_query = '\n'.join([
-    #             'INSERT INTO products',
-    #             '(',
-    #             '    {}'.format(',\n    '.join([i for i in config_spec['output-fields']])),
-    #             ') VALUES (',
-    #             '    {}'.format(',\n    '.join([prepare_value_for_db_insert(value=evaluate_transform(transform=config_spec['output-fields'][i]['Transform'],
-    #                                                                                                  type=config_spec['output-fields'][i]['Type'],
-    #                                                                                                  source_dict=row),
-    #                                                                         type=config_spec['output-fields'][i]['Type']) for i in config_spec['output-fields']])),
-    #             ')'
-    #         ])
-    #         print(sql_query)
-    #         db_cursor.execute(sql_query)
-    #         db_conn.commit()
-    # db_conn.close()
 
 if __name__ == '__main__':
     main()
