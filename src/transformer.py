@@ -17,42 +17,54 @@ DATA_TYPES = {
 }
 
 
-class FileInterface:
-    def __init__(self, file, tansforms):
+class InputInterface:
+    def __init__(self, source, transforms):
         raise NotImplementedError
-    def process_row(self, data):
+    def get_next_row(self):
         raise NotImplementedError
     def tear_down(self):
         raise NotImplementedError
     def num_total_rows(self):
         raise NotImplementedError
+    def get_current_row(self):
+        raise NotImplementedError
+
+class OutputInterface:
+    def __init__(self, target, transforms):
+        raise NotImplementedError
+    def put_row(self, data):
+        raise NotImplementedError
+    def get_current_row(self):
+        raise NotImplementedError
+    def tear_down(self):
+        raise NotImplementedError
 
 
-class FileInput(FileInterface):
-    def __init__(self, file, transforms):
-        self.file = file
-        self.tansforms = transforms
+class FileInput(InputInterface):
+    def __init__(self, source, transforms):
+        self.source = source
+        self.transforms = transforms
         self.current_row_num = 0
-
-    def process_row(self, data):
-        pass
-    def tear_down(self):
+    def get_next_row(self):
         pass
     def num_total_rows(self):
         pass
+    def get_current_row(self):
+        pass
+    def tear_down(self):
+        pass
 
 
-class FileOutput(FileInterface):
-    def __init__(self, file, transforms):
-        self.file = file
-        self.tansforms = transforms
+class FileOutput(OutputInterface):
+    def __init__(self, target, transforms):
+        self.target = target
+        self.transforms = transforms
         self.current_row_num = 0
-
-    def process_row(self, data):
+    def put_row(self, data):
+        pass
+    def get_current_row(self):
         pass
     def tear_down(self):
-        pass
-    def num_total_rows(self):
         pass
 
 
@@ -132,8 +144,8 @@ def main():
     config_spec = parse_config_yaml(config_file=args.config)
     print('config_spec = {}'.format(config_spec))
 
-    inputter = FileInput(file=args.input, transforms=config_spec['input-fields'])
-    outputter = FileOutput(file=args.success, transforms=config_spec['output-fields'])
+    inputter = FileInput(source=args.input, transforms=config_spec['input-fields'])
+    outputter = FileOutput(target=args.success, transforms=config_spec['output-fields'])
     print('Hello World')
     outputter.tear_down()
     inputter.tear_down()
