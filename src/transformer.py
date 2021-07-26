@@ -19,21 +19,24 @@ DATA_TYPES = {
 class InputInterface:
     def __init__(self, source, transforms):
         raise NotImplementedError
-    def get_next_row(self):
+    def __next__(self):
         raise NotImplementedError
     def tear_down(self):
         raise NotImplementedError
     def num_total_rows(self):
         raise NotImplementedError
-    def get_current_row(self):
+    def get_current_row_num(self):
         raise NotImplementedError
+    def __iter__(self):
+        return self
+
 
 class OutputInterface:
     def __init__(self, target, transforms):
         raise NotImplementedError
     def put_row(self, data):
         raise NotImplementedError
-    def get_current_row(self):
+    def get_current_row_num(self):
         raise NotImplementedError
     def tear_down(self):
         raise NotImplementedError
@@ -44,14 +47,30 @@ class FileInput(InputInterface):
         self.source = source
         self.transforms = transforms
         self.current_row_num = 0
-    def get_next_row(self):
-        pass
+        self.total_rows = self._num_rows_in_file()
+        self.open_file = open(source, newline='')
+        self.reader = csv.DictReader(self.open_file)
+
+    def __next__(self):
+        return self.reader.__next__()
+
     def num_total_rows(self):
-        pass
-    def get_current_row(self):
-        pass
+        return self.total_rows
+
+    def get_current_row_num(self):
+        return self.current_row_num
+
     def tear_down(self):
-        pass
+        self.open_file.close()
+
+    def _num_rows_in_file(self):
+        p = subprocess.Popen(['wc', '-l', self.source],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        result, err = p.communicate()
+        if p.returncode != 0:
+            raise IOError(err)
+        return int(result.strip().split()[0])
 
 
 class FileOutput(OutputInterface):
@@ -59,10 +78,13 @@ class FileOutput(OutputInterface):
         self.target = target
         self.transforms = transforms
         self.current_row_num = 0
+
     def put_row(self, data):
         pass
-    def get_current_row(self):
-        pass
+
+    def get_current_row_num(self):
+        return self.current_row_num
+
     def tear_down(self):
         pass
 
@@ -73,13 +95,7 @@ field_regexp = re.compile('\$\{[A-Za-z0-9 ]+\}')
 
 
 
-def lines_in_file(fname):
-    p = subprocess.Popen(['wc', '-l', fname], stdout=subprocess.PIPE,
-                                              stderr=subprocess.PIPE)
-    result, err = p.communicate()
-    if p.returncode != 0:
-        raise IOError(err)
-    return int(result.strip().split()[0])
+
 
 
 def parse_config_yaml(config_file):
@@ -145,6 +161,8 @@ def main():
     inputter = FileInput(source=args.input, transforms=config_spec['input-fields'])
     outputter = FileOutput(target=args.success, transforms=config_spec['output-fields'])
     print('Hello World')
+    for row in inputter:
+        print('Goodbye World')
     outputter.tear_down()
     inputter.tear_down()
 
