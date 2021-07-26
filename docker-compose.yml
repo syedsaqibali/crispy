@@ -4,6 +4,6 @@ services:
   crisp_homework:
     build:
       context: .
-    command: src/transformer.py  --config src/config.yml --database db/products.db --input input_files/sample_input.csv --failure output_files/failure.csv
+    command: src/transformer.py  --config src/config.yml --input input_files/sample_input.csv --success output_files/success.csv --failure output_files/failure.csv
     volumes:
       - .:/crispy_project

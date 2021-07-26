@@ -1,25 +1,36 @@
 ---
  input-fields:
-   - Order Number
-   - Year
-   - Month
-   - Day
-   - Product Number
-   - Product Name
-   - Count
-   - Extra Col1
-   - Extra Col2
-   - Empty Column
+   Order Number:
+     Type: INTEGER
+   Year:
+     Type: INTEGER
+   Month:
+     Type: INTEGER
+   Day:
+     Type: INTEGER
+   Product Number:
+     Type: STRING
+   Product Name:
+     Type: STRING
+   Count:
+     Type: STRING
+   Extra Col1:
+     Type: STRING
+   Extra Col2:
+     Type: STRING
+   Empty Column:
+     Type: STRING
+
  output-fields:
    OrderID:
      Type: INTEGER
-     Transform: "int('${Order Number}')"
+     Transform: "'${Order Number}'"
    OrderDate:
-     Type: DATE
-     Transform: "datetime.strptime('${Day}/${Month}/${Year}', '%d/%m/%Y')"
+     Type: STRING
+     Transform: "datetime.datetime(year=${Year}, month=${Month}, day=${Day}).strftime('%Y-%m-%d')"
    ProductId:
      Type: STRING
-     Transform: "str('${Product Number}')"
+     Transform: "'${Product Number}'"
    ProductName:
      Type: STRING
      Transform: "'${Product Name}'.title()"
