@@ -3,8 +3,7 @@
 import argparse
 from tqdm import tqdm
 import csv
-import ruamel.yaml as yaml
-import sqlite3
+import yaml
 import re
 from datetime import datetime
 import subprocess
@@ -86,8 +85,7 @@ def lines_in_file(fname):
 def parse_config_yaml(config_file):
 
     # Parse the configuration file
-    with open(config_file) as stream:
-        parsed_config = yaml.safe_load(stream)
+    parsed_config = yaml.load(open(config_file).read())
 
     # Check the configuration has top-level keys input-fields & output-fields only
     assert set(parsed_config.keys()) == {'input-fields', 'output-fields'}, 'Configuration file {} must contain exactly 2 top-level keys: input-fields, output-fields'.format(config_file)
