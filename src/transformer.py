@@ -6,7 +6,8 @@ import csv                  # To read & write CSV files
 import yaml                 # To parse YAML configuration file
 import re                   # To use regular expressions
 import subprocess           # To make a system call
-import datetime             # To manipulate dates. Not used in the code but required by the configuration file
+import datetime             # To manipulate dates. Not used in the code but required by the configuration file (that's a hack)
+import sys                  # To abort the program early
 
 # Define the valid data types used by the configuration file
 DATA_TYPES = {
@@ -144,16 +145,16 @@ def parse_config_yaml(config_file):
     parsed_config = yaml.load(open(config_file).read(), Loader=yaml.FullLoader)
 
     # Check the configuration has top-level keys input-fields & output-fields only
-    assert set(parsed_config.keys()) == {'input-fields', 'output-fields'}, 'Configuration file {} must contain exactly 2 top-level keys: input-fields, output-fields'.format(config_file)
+    assert set(parsed_config.keys()) == {'input-fields', 'output-fields'}, 'There must be exactly 2 top-level keys: input-fields, output-fields'
 
     # Check that all input fields have a valid Type
-    assert set([parsed_config['input-fields'][i].get('Type') for i in parsed_config['input-fields']]).issubset(DATA_TYPES), 'All input fields in configuration file {} must have a valid Type'.format(config_file)
+    assert set([parsed_config['input-fields'][i].get('Type') for i in parsed_config['input-fields']]).issubset(DATA_TYPES), 'All input fields must have a valid Type'
 
     # Check that all output fields have a valid Type
-    assert set([parsed_config['output-fields'][i].get('Type') for i in parsed_config['output-fields']]).issubset(DATA_TYPES), 'All output fields in configuration file {} must have a valid Type'.format(config_file)
+    assert set([parsed_config['output-fields'][i].get('Type') for i in parsed_config['output-fields']]).issubset(DATA_TYPES), 'All output fields must have a valid Type'
 
     # Check that all output fields have a Transform
-    assert all(['Transform' in parsed_config['output-fields'][i] for i in parsed_config['output-fields']]), 'All output fields in configuration file {} must have a Transform'.format(config_file)
+    assert all(['Transform' in parsed_config['output-fields'][i] for i in parsed_config['output-fields']]), 'All output fields must have a Transform'
 
     return parsed_config
 
@@ -169,7 +170,11 @@ def main():
     args = parser.parse_args()
 
     # Get the configuration
-    config_spec = parse_config_yaml(config_file=args.config)
+    try:
+        config_spec = parse_config_yaml(config_file=args.config)
+    except (yaml.YAMLError, AssertionError) as e:
+        print("Failed to parse configuration file {}: {}".format(args.config, str(e)))
+        sys.exit(-1)
 
     # Go through the Input CSVfile, transforming the data according to the configuration file and
     # and output the transformed row to a CSV file
