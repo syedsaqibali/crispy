@@ -161,7 +161,7 @@ def main():
     inputter = FileInput(source=args.input, transforms=config_spec['input-fields'])
     outputter = FileOutput(target=args.success, transforms=config_spec['output-fields'])
     print('Hello World')
-    for row in inputter:
+    for row_ind, row in tqdm(enumerate(inputter), total=inputter.num_total_rows()):
         print('Goodbye World')
     outputter.tear_down()
     inputter.tear_down()
