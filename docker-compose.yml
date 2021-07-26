@@ -1,0 +1,9 @@
+version: "3.4"
+
+services:
+  crisp_homework:
+    build:
+      context: .
+    command: src/transformer.py  --config src/config.yml --database db/products.db --input input_files/sample_input.csv --failure output_files/failure.csv
+    volumes:
+      - .:/crispy_project
