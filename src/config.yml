@@ -20,3 +20,22 @@
      Type: STRING
    Empty Column:
      Type: STRING
+ output-fields:
+   OrderID:
+     Type: INTEGER
+     Transform: "'${Order Number}'"
+   OrderDate:
+     Type: STRING
+     Transform: "datetime.datetime(year=${Year}, month=${Month}, day=${Day}).strftime('%Y-%m-%d')"
+   ProductId:
+     Type: STRING
+     Transform: "'${Product Number}'"
+   ProductName:
+     Type: STRING
+     Transform: "'${Product Name}'.title()"
+   Quantity:
+     Type: FLOAT
+     Transform: "float('${Count}'.replace(',', ''))"
+   Unit:
+     Type: STRING
+     Transform: "'kg'"

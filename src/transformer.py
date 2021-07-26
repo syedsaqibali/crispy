@@ -180,10 +180,25 @@ def main():
     # and output the transformed row to a CSV file
     inputter = CSVFileInput(source=args.input, transforms=config_spec['input-fields'])
     outputter = CSVFileOutput(target=args.success, transforms=config_spec['output-fields'])
+
+    reject_file = open(args.failure, 'w')
+    reject_writer = csv.DictWriter(reject_file, ['Row Number', 'Error Description'] + [i for i in config_spec['input-fields']])
+    reject_writer.writeheader()
+
+    success_count = failure_count = 0
     for row in tqdm(inputter, total=inputter.num_total_rows()):
-        outputter.put_row(row)
+        try:
+            outputter.put_row(row)
+            success_count += 1
+        except Exception as e:
+            failure_count += 1
+            row['Row Number'] = inputter.current_row_num
+            row['Error Description'] = str(e)
+            reject_writer.writerow(row)
     outputter.tear_down()
     inputter.tear_down()
+    print('{} rows successfully transformed in file {}'.format(success_count, args.success))
+    print('{} rows failed to transform in file {}'.format(failure_count, args.failure))
 
 if __name__ == '__main__':
     main()
