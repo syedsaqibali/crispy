@@ -32,11 +32,12 @@ need to be imported in the python code, even though that code never explicitly u
 for the user's who are operating long-running programs.
  
 ## Assumptions/Simplifications I made: 
-- All column names (denoted by `${...}`) that are specificed in the configuration file's transforms must match a key in the `input-fields` section 
-and also must match a the field header in the input file. That field cannot be omitted from any row of the input (It can be an empty string. 
-But the column cannot be omitted altogether)
-- The columns in any row of the input file can not exceed the number of columns in the header
+- All column names that are specificed in the configuration file's transforms (denoted by `${...}`) must match a key in the `input-fields` section 
+and also must match a field header in the input file. That field cannot be omitted from any row of the input.
+(It's value can be an empty string, but the column cannot be omitted altogether)
 - Transform strings do not contain `${...}` other than where variable substitution is expected. These special characters cannot be escaped.
+- The number of columns in any row of the input file can not exceed the number of columns in that file's header.
+- The input data file and configuration file do not contain malicious code.
 
 ## Possible Next Steps:
 - Add other input and output classes. 
