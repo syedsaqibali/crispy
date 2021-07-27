@@ -1,0 +1,3 @@
+Input Row Number,Error Description
+4,Transforming/substitution of output field OrderDate failed: month must be in 1..12
+5,Casting of input field Year failed: invalid literal for int() with base 10: 'A'

@@ -6,7 +6,8 @@ import csv                  # To read & write CSV files
 import yaml                 # To parse YAML configuration file
 import re                   # To use regular expressions
 import subprocess           # To make a system call
-import datetime             # To manipulate dates. Not used in the code but required by the configuration file
+import datetime             # To manipulate dates. Not used in the code but required by the configuration file (that's a hack)
+import sys                  # To abort the program early
 
 # Define the valid data types used by the configuration file
 DATA_TYPES = {
@@ -58,19 +59,22 @@ class CSVFileInput(InputInterface):
     # the fields to the specified type and returns the data. Any malformed
     # data that cannot be transformed causes an exception to be thrown
     def __next__(self):
-        file_row = self.reader.__next__()
         self.current_row_num += 1
+        file_row = self.reader.__next__()
         transformed_row = {}
         for field in file_row:
             type = self.transforms[field]['Type']
-            if type == 'INTEGER':
-                transformed_row[field] = int(file_row[field])
-            elif type == 'FLOAT':
-                transformed_row[field] = float(file_row[field])
-            elif type == 'STRING':
-                transformed_row[field] = file_row[field]
-            else:
-                assert False, 'It should never get here!'
+            try:
+                if type == 'INTEGER':
+                    transformed_row[field] = int(file_row[field])
+                elif type == 'FLOAT':
+                    transformed_row[field] = float(file_row[field])
+                elif type == 'STRING':
+                    transformed_row[field] = file_row[field]
+                else:
+                    assert False, 'It should never get here!'
+            except ValueError as e:
+                raise ValueError('Casting of input field {} failed: {}'.format(field, str(e))) from e
         return transformed_row
 
     # Report the total number of rows of data in this file
@@ -120,17 +124,24 @@ class CSVFileOutput(OutputInterface):
     def put_row(self, data):
         transformed_row = {}
         for field in self.transforms.keys():
-            transformed_value = eval(self._substitute_variables(transform_string=self.transforms[field]['Transform'],
-                                                                data=data))
+            try:
+                transformed_value = eval(
+                    self._substitute_variables(transform_string=self.transforms[field]['Transform'],
+                                               data=data))
+            except Exception as e:
+                raise Exception('Transforming/substitution of output field {} failed: {}'.format(field, str(e))) from Exception
             type = self.transforms[field]['Type']
-            if type == 'INTEGER':
-                transformed_row[field] = int(transformed_value)
-            elif type == 'FLOAT':
-                transformed_row[field] = float(transformed_value)
-            elif type == 'STRING':
-                transformed_row[field] = transformed_value
-            else:
-                assert False, 'It should never get here!'
+            try:
+                if type == 'INTEGER':
+                    transformed_row[field] = int(transformed_value)
+                elif type == 'FLOAT':
+                    transformed_row[field] = float(transformed_value)
+                elif type == 'STRING':
+                    transformed_row[field] = transformed_value
+                else:
+                    assert False, 'It should never get here!'
+            except ValueError as e:
+                raise ValueError('Casting for output field {} failed: {}'.format(field, str(e))) from e
         self.writer.writerow(transformed_row)
 
     # Clean up
@@ -144,16 +155,16 @@ def parse_config_yaml(config_file):
     parsed_config = yaml.load(open(config_file).read(), Loader=yaml.FullLoader)
 
     # Check the configuration has top-level keys input-fields & output-fields only
-    assert set(parsed_config.keys()) == {'input-fields', 'output-fields'}, 'Configuration file {} must contain exactly 2 top-level keys: input-fields, output-fields'.format(config_file)
+    assert set(parsed_config.keys()) == {'input-fields', 'output-fields'}, 'There must be exactly 2 top-level keys: input-fields, output-fields'
 
     # Check that all input fields have a valid Type
-    assert set([parsed_config['input-fields'][i].get('Type') for i in parsed_config['input-fields']]).issubset(DATA_TYPES), 'All input fields in configuration file {} must have a valid Type'.format(config_file)
+    assert set([parsed_config['input-fields'][i].get('Type') for i in parsed_config['input-fields']]).issubset(DATA_TYPES), 'All input fields must have a valid Type'
 
     # Check that all output fields have a valid Type
-    assert set([parsed_config['output-fields'][i].get('Type') for i in parsed_config['output-fields']]).issubset(DATA_TYPES), 'All output fields in configuration file {} must have a valid Type'.format(config_file)
+    assert set([parsed_config['output-fields'][i].get('Type') for i in parsed_config['output-fields']]).issubset(DATA_TYPES), 'All output fields must have a valid Type'
 
     # Check that all output fields have a Transform
-    assert all(['Transform' in parsed_config['output-fields'][i] for i in parsed_config['output-fields']]), 'All output fields in configuration file {} must have a Transform'.format(config_file)
+    assert all(['Transform' in parsed_config['output-fields'][i] for i in parsed_config['output-fields']]), 'All output fields must have a Transform'
 
     return parsed_config
 
@@ -169,16 +180,37 @@ def main():
     args = parser.parse_args()
 
     # Get the configuration
-    config_spec = parse_config_yaml(config_file=args.config)
+    try:
+        config_spec = parse_config_yaml(config_file=args.config)
+    except (yaml.YAMLError, AssertionError) as e:
+        print("Failed to parse configuration file {}: {}".format(args.config, str(e)))
+        sys.exit(-1)
 
     # Go through the Input CSVfile, transforming the data according to the configuration file and
     # and output the transformed row to a CSV file
     inputter = CSVFileInput(source=args.input, transforms=config_spec['input-fields'])
     outputter = CSVFileOutput(target=args.success, transforms=config_spec['output-fields'])
-    for row in tqdm(inputter, total=inputter.num_total_rows()):
-        outputter.put_row(row)
+
+    reject_file = open(args.failure, 'w')
+    reject_writer = csv.DictWriter(reject_file, ['Input Row Number', 'Error Description'])
+    reject_writer.writeheader()
+
+    success_count = failure_count = 0
+    for _ in tqdm(iter(range(1, inputter.num_total_rows()+1)), total=inputter.num_total_rows()):
+        try:
+            row = inputter.__next__()
+            outputter.put_row(row)
+            success_count += 1
+        except Exception as e:
+            failure_count += 1
+            reject_writer.writerow({
+                'Input Row Number': inputter.current_row_num,
+                'Error Description': str(e)
+            })
     outputter.tear_down()
     inputter.tear_down()
+    print('{} rows successfully transformed in file {}'.format(success_count, args.success))
+    print('{} rows failed to transform in file {}'.format(failure_count, args.failure))
 
 if __name__ == '__main__':
     main()
