@@ -7,7 +7,7 @@
 - Install [Docker](https://www.docker.com/)
 
 ## Instructions for running: 
-- From the command line run: `docker-compose up`. 
+- From the command line run: `docker-compose up crisp_homework`. 
 That will run the program with the sample input file.
 
 ## Architectural overview

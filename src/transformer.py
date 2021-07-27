@@ -59,19 +59,22 @@ class CSVFileInput(InputInterface):
     # the fields to the specified type and returns the data. Any malformed
     # data that cannot be transformed causes an exception to be thrown
     def __next__(self):
-        file_row = self.reader.__next__()
         self.current_row_num += 1
+        file_row = self.reader.__next__()
         transformed_row = {}
         for field in file_row:
             type = self.transforms[field]['Type']
-            if type == 'INTEGER':
-                transformed_row[field] = int(file_row[field])
-            elif type == 'FLOAT':
-                transformed_row[field] = float(file_row[field])
-            elif type == 'STRING':
-                transformed_row[field] = file_row[field]
-            else:
-                assert False, 'It should never get here!'
+            try:
+                if type == 'INTEGER':
+                    transformed_row[field] = int(file_row[field])
+                elif type == 'FLOAT':
+                    transformed_row[field] = float(file_row[field])
+                elif type == 'STRING':
+                    transformed_row[field] = file_row[field]
+                else:
+                    assert False, 'It should never get here!'
+            except ValueError as e:
+                raise ValueError('Casting of input field {} failed: {}'.format(field, str(e))) from e
         return transformed_row
 
     # Report the total number of rows of data in this file
@@ -121,17 +124,24 @@ class CSVFileOutput(OutputInterface):
     def put_row(self, data):
         transformed_row = {}
         for field in self.transforms.keys():
-            transformed_value = eval(self._substitute_variables(transform_string=self.transforms[field]['Transform'],
-                                                                data=data))
+            try:
+                transformed_value = eval(
+                    self._substitute_variables(transform_string=self.transforms[field]['Transform'],
+                                               data=data))
+            except Exception as e:
+                raise Exception('Transforming/substitution of output field {} failed: {}'.format(field, str(e))) from Exception
             type = self.transforms[field]['Type']
-            if type == 'INTEGER':
-                transformed_row[field] = int(transformed_value)
-            elif type == 'FLOAT':
-                transformed_row[field] = float(transformed_value)
-            elif type == 'STRING':
-                transformed_row[field] = transformed_value
-            else:
-                assert False, 'It should never get here!'
+            try:
+                if type == 'INTEGER':
+                    transformed_row[field] = int(transformed_value)
+                elif type == 'FLOAT':
+                    transformed_row[field] = float(transformed_value)
+                elif type == 'STRING':
+                    transformed_row[field] = transformed_value
+                else:
+                    assert False, 'It should never get here!'
+            except ValueError as e:
+                raise ValueError('Casting for output field {} failed: {}'.format(field, str(e))) from e
         self.writer.writerow(transformed_row)
 
     # Clean up
@@ -182,19 +192,21 @@ def main():
     outputter = CSVFileOutput(target=args.success, transforms=config_spec['output-fields'])
 
     reject_file = open(args.failure, 'w')
-    reject_writer = csv.DictWriter(reject_file, ['Row Number', 'Error Description'] + [i for i in config_spec['input-fields']])
+    reject_writer = csv.DictWriter(reject_file, ['Input Row Number', 'Error Description'])
     reject_writer.writeheader()
 
     success_count = failure_count = 0
-    for row in tqdm(inputter, total=inputter.num_total_rows()):
+    for _ in tqdm(iter(range(1, inputter.num_total_rows()+1)), total=inputter.num_total_rows()):
         try:
+            row = inputter.__next__()
             outputter.put_row(row)
             success_count += 1
         except Exception as e:
             failure_count += 1
-            row['Row Number'] = inputter.current_row_num
-            row['Error Description'] = str(e)
-            reject_writer.writerow(row)
+            reject_writer.writerow({
+                'Input Row Number': inputter.current_row_num,
+                'Error Description': str(e)
+            })
     outputter.tear_down()
     inputter.tear_down()
     print('{} rows successfully transformed in file {}'.format(success_count, args.success))

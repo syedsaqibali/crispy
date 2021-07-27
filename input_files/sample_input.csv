@@ -3,4 +3,5 @@ Order Number,Year,Month,Day,Product Number,Product Name,Count,Extra Col1,Extra C
 1001,2017,12,12,P-10002,Iceberg lettuce,500.00,Lorem,Ipsum,
 1002,2019,7,8,P-10003,Brussel sprouts,90,XXX,YYYY
 1003,2019,35,30,P-10004,Morrocan Tangerines,90,XXX,YYYY
-1004,2021,9,12,P-10005,Indian sherbet berries,AAAAA,XXX,YYYY
+1004,A,9,12,P-10005,Indian sherbet berries,AAAAA,XXX,YYYY
+1005,21,12,10,31,131,131,131,13,Z
