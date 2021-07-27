@@ -37,12 +37,12 @@ and also must match a field header in the input file. That field cannot be omitt
 (It's value can be an empty string, but the column cannot be omitted altogether)
 - Transform strings do not contain `${...}` other than where variable substitution is expected. These special characters cannot be escaped.
 - The number of columns in any row of the input file can not exceed the number of columns in that file's header.
-- The input data file and configuration file do not contain malicious code.
+- The input and configuration files do not contain malicious code.
 
 ## Possible Next Steps:
 - Add other input and output classes. 
 For example reading and writing to a database seems like an obvious use case.
-- Create a special-purpose grammar that can be used to define the transforms instead of python expressions that need to be
+- Create a special-purpose grammar that can be used to define the transforms in the configuration file instead of python expressions that need to be
 `eval()`ed.
 - Implement error recovery so that if errors are found in input data, we attempt to correct (within reason) the wrong values instead of rejecting the entire record
 
