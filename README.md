@@ -1,7 +1,8 @@
-# Crisp Homework Assignment by Submitted Saqib Ali 7/26/2021
+# Crisp Homework Assignment Submitted by Saqib Ali on 7/26/2021
 
 
 ## Description:
+Assignment given by Crisp to Saqib Ali on 7/21/2021 for interview purposes.
 
 ## Pre-requisites: 
 - Install [Docker](https://www.docker.com/)
@@ -10,7 +11,7 @@
 - From the command line run: `docker-compose up crisp_homework`. 
 That will run the program with the sample input file.
 
-## Architectural overview
+## Architectural overview:
 - I Dockerized this application so that it would run the same way regardless of your operating system 
 and what/where software packages you have installed
 - I chose YAML for the configuration file because it is a simple, well-understood and clean format. YAML parsers are readily available
